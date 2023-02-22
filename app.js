@@ -113,6 +113,7 @@ const authenticateToken = (request, response, next) => {
         response.status(401);
         response.send("Invalid JWT Token");
       } else {
+        request.username = payload.username;
         next();
       }
     });
@@ -121,34 +122,57 @@ const authenticateToken = (request, response, next) => {
 
 //get API 3
 app.get("/user/tweets/feed/", authenticateToken, async (request, response) => {
+  const { username } = request;
+  const userId = `
+  SELECT user_id FROM user WHERE username = '${username}';`;
+  dbUser = await db.get(userId);
+
   const getTheQuery = `
-        SELECT username, tweet, date_time 
-        FROM follower INNER JOIN tweet INNER JOIN user ON
-            follower.following_user_id = tweet.user_id = user.user_id
-        ORDER BY date_time 
-            LIMIT 4 OFFSET 0`;
+        SELECT 
+            user.username, tweet.tweet, tweet.date_time AS dateTime
+        FROM 
+            follower INNER JOIN tweet ON 
+            follower.following_user_id = tweet.user_id 
+            INNER JOIN user ON
+            tweet.user_id = user.user_id
+        WHERE
+            follower.follower_user_id = ${dbUser.user_id}
+        ORDER BY 
+            tweet.date_time DESC
+            LIMIT 4 `;
   const userArray = await db.all(getTheQuery);
-  response.send(
-    userArray.map((eachUser) => convertingIntoCamelcases(eachUser))
-  );
+  response.send(userArray);
 });
 
 //get API 4
 app.get("/user/following/", authenticateToken, async (request, response) => {
+  const { username } = request;
+  const userId = `
+  SELECT user_id FROM user WHERE username = '${username}';`;
+  dbUser = await db.get(userId);
+
   const getUserQuery = `
-        SELECT name
+        SELECT user.name
         FROM follower INNER JOIN user ON
-            user.user_id = follower.following_user_id;`;
+            follower.following_user_id = user.user_id ;
+        WHERE 
+            follower.follower_id = ${dbUser.user_id}`;
   const userArray = await db.all(getUserQuery);
   response.send(userArray);
 });
 
 //get API 5
 app.get("/user/followers/", authenticateToken, async (request, response) => {
+  const { username } = request;
+  const userId = `
+  SELECT user_id FROM user WHERE username = '${username}';`;
+  dbUser = await db.get(userId);
+
   const getUserQuery = `
-        SELECT name
+        SELECT user.name
         FROM follower INNER JOIN user ON 
-             user.user_id = follower.follower_user_id;`;
+             follower.follower_user_id = user.user_id;
+        WHERE follower.following_user_id = ${dbUser.user_id}`;
   const userArray = await db.all(getUserQuery);
   response.send(userArray);
 });

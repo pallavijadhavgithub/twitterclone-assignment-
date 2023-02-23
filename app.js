@@ -150,13 +150,14 @@ app.get("/user/following/", authenticateToken, async (request, response) => {
   const userId = `
   SELECT user_id FROM user WHERE username = '${username}';`;
   dbUser = await db.get(userId);
+  //   console.log(dbUser.user_id);
 
   const getUserQuery = `
         SELECT user.name
-        FROM follower INNER JOIN user ON
-            follower.following_user_id = user.user_id ;
+        FROM user INNER JOIN follower ON
+            user.user_id = follower.following_user_id
         WHERE 
-            follower.follower_id = ${dbUser.user_id}`;
+            follower.follower_user_id = ${dbUser.user_id}`;
   const userArray = await db.all(getUserQuery);
   response.send(userArray);
 });
@@ -170,8 +171,8 @@ app.get("/user/followers/", authenticateToken, async (request, response) => {
 
   const getUserQuery = `
         SELECT user.name
-        FROM follower INNER JOIN user ON 
-             follower.follower_user_id = user.user_id;
+        FROM user INNER JOIN follower ON 
+              user.user_id =follower.follower_user_id
         WHERE follower.following_user_id = ${dbUser.user_id}`;
   const userArray = await db.all(getUserQuery);
   response.send(userArray);
@@ -181,7 +182,8 @@ app.get("/user/followers/", authenticateToken, async (request, response) => {
 app.get("/tweets/:tweetId/", authenticateToken, async (request, response) => {
   const { tweetId } = request.params;
   const getTodoQuery = `
-    SELECT tweet, COUNT(like_id) AS likes, COUNT(reply) AS replies, date_time AS dateTime 
+    SELECT 
+        tweet.tweet, COUNT(like.like_id) AS likes, COUNT(reply.reply) AS replies, date_time AS dateTime 
     FROM (tweet NATURAL JOIN reply NATURAL JOIN like)AS T INNER JOIN follower
         ON T.user_id = follower.following_user_id
     WHERE tweet_id = ${tweetId}
